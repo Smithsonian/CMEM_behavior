@@ -1,0 +1,7 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+temp/gauge_data/*
+temp/lunar_nodal/*
+temp/gauge_data_6min/*
