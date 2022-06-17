@@ -75,13 +75,14 @@ scenarioSubset <- transectoutput[[1]] %>%
   
 
 scenarioTransect <- ggplot(data=scenarioTransectGraph, aes(x=year, y=surfaceElevation, color=above_below_msl)) +
-  geom_line(aes(group=as.character(initElv))) +
+  geom_line(aes(group=as.character(initElv)), size = 1) +
   # geom_point(aes(shape=above_below_msl)) +
   # scale_shape_manual(values=c(24, 25)) +
-  geom_point(data = scenarioSubset, size = 1.25, color = "black", shape=1) +
-  geom_text(data = scenarioSubset, aes(label = labs1), nudge_x = -2, color = "black") +
+  geom_point(data = scenarioSubset, shape = 21, size = 2, color = "red", fill = "white") +
+  geom_label(data = scenarioSubset, aes(label = labs1), nudge_x = -3, color = "red", fill = "white") +
   theme_minimal() +
   ylab("Surface Elevation (cm NAVD88)") +
+  scale_color_manual(values=c("black", "grey")) +
   theme(legend.title = element_blank(), 
         legend.position = "bottom") +
   ggtitle("A. CohortMEM Behavior Over Range of Initial Elevations")
@@ -118,6 +119,57 @@ mass_cohorts <- cohortSubset %>%
   dplyr::mutate(layer_top=surfaceElevation-layer_top, 
                 layer_bottom=surfaceElevation-layer_bottom) 
 
+# For each unique core. 
+years <- c(2001, 2050, 2099)
+for (i in 1:length(years)) {
+  coreCandidate_temp <- filter(cohortSubset, year == years[i])
+  labs1 <- first(coreCandidate_temp$labs1)
+  labs2 <- first(coreCandidate_temp$labs2)
+  initElv <- first(coreCandidate_temp$initElv)
+  
+  core_temp <- simulateSoilCore(cohortSubset, coreYear = years[i]) %>% 
+    mutate(labs1 = labs1,
+           labs2 = labs2,
+           initElv = initElv,
+           year = years[i])
+  
+  if (i == 1) {
+    all_cores <- core_temp
+  } else {
+    all_cores <- bind_rows(all_cores, core_temp)
+  }
+}
+
+core_graph <- all_cores %>%
+  dplyr::select(-age, -input_yrs, -om_fraction, -dry_bulk_density, -oc_fraction) %>% 
+  # dplyr::filter(complete.cases(.)) %>% 
+  dplyr::group_by(year, initElv) %>% 
+  dplyr::mutate(cohortIndex = n():1) %>% 
+  ungroup() %>% 
+  tidyr::gather(key = "mass_pool", value = "mass_fraction", 
+                -year, -layer_top, -layer_bottom, -cohortIndex, -initElv, -labs1, -labs2) %>%
+  dplyr::group_by(year, cohortIndex, initElv, layer_top, layer_bottom) %>%
+  dplyr::mutate(mass_pool = str_replace(mass_pool, "_", " "),
+                mass_pool = factor(mass_pool, 
+                                   levels=c("mineral",
+                                            "root mass",
+                                            "fast OM",
+                                            "slow OM"
+                                   ))) %>%
+  dplyr::arrange(year, layer_bottom, mass_pool) %>%
+  dplyr::mutate(mass_fraction = mass_fraction/sum(mass_fraction)) %>% 
+  dplyr::mutate(max_mass = cumsum(mass_fraction),
+                min_mass = ifelse(mass_pool==first(mass_pool),0,lag(max_mass)),
+                mass_pool = as.character(mass_pool)) %>%
+  # Join mass cohorts with scenario table to convert depths to referenced elevations
+  dplyr::ungroup() %>%
+  dplyr::left_join(transectoutput[[1]]) %>%
+  filter(initElv == median(unique(transectoutput[[2]]$initElv)),
+         year %in% c(2001, 2050, 2099)) %>% 
+  dplyr::mutate(layer_top=surfaceElevation-layer_top, 
+                layer_bottom=surfaceElevation-layer_bottom,
+                labs2 = str_replace_all(labs2, "Cohort d", "D")) 
+
 # Reshape the scenario table
 tides <- scenarioSubset %>%
   # Track any elevation threholds in the animation speciefied.
@@ -129,33 +181,33 @@ tides <- scenarioSubset %>%
   dplyr::filter(complete.cases(.)) %>% 
   mutate(datum = recode(datum, 
                              "meanSeaLevel"= "MSL",
-                             "meanHighWater"="MHW"))
+                             "meanHighWater"="MHW")) %>% 
+  filter(! (datum == "MSL" & year %in% c(2001, 2050))) %>% 
+  mutate(labs2 = str_replace_all(labs2, "Cohort d", "D"))
 
 # get rid of any NA values.               
 
 chPalette = c("#56B4E9", "#999999", "#E69F00", "#009E73")
 
 # gganimate stuff
-graph_mass_cohorts <- ggplot2::ggplot(data = mass_cohorts, 
-                                        aes(xmin = min_mass, xmax = max_mass, 
-                                            ymin = layer_top, ymax = layer_bottom
-                                        )) +
+graph_cores <- ggplot2::ggplot(data = core_graph, 
+                                      aes(xmin = min_mass, xmax = max_mass, 
+                                          ymin = layer_top, ymax = layer_bottom
+                                      )) +
   ggplot2::geom_rect(aes(fill = mass_pool), color = rgb(0,0,0, alpha = 0.1)) +
   ggplot2::theme_minimal() +
   ggplot2::scale_fill_manual(values=chPalette) +
   ggplot2::geom_hline(data=tides, aes(yintercept=WaterLevel, lty=datum), color="blue") +
   ggplot2::ylab("Depth (cm NAVD88)") +
-  ggplot2::xlab("Mass Accumulated Per Cohort (g) - log scale") +
+  ggplot2::xlab("Fractional Mass") +
   facet_wrap(.~labs2) +
-  scale_x_log10() +
+  # scale_x_log10() +
   theme(legend.position = "right",
         legend.title = element_blank())
 
-(graph_mass_cohorts)
+(graph_cores)
 
-grid.arrange(scenarioTransect, graph_mass_cohorts, nrow = 2)
-
-cMemFig <- arrangeGrob(scenarioTransect, graph_mass_cohorts)  
-
-ggsave("temp/cMemBehaviorFig_220415.pdf", width=7.25, height=7.25, dpi=300, cMemFig)
-ggsave("temp/cMemBehaviorFig_220415.jpg", width=7.25, height=7.25, dpi=300, cMemFig)
+grid.arrange(scenarioTransect, graph_cores, nrow = 2)
+cMemFig <- arrangeGrob(scenarioTransect, graph_cores)  
+ggsave("figs/cMemBehaviorFig_core.pdf", width=7.25, height=7.25, dpi=300, cMemFig)
+ggsave("figs/cMemBehaviorFig_core.jpg", width=7.25, height=7.25, dpi=300, cMemFig)

@@ -134,7 +134,7 @@ forecasts <- ggplot(plot_these, aes(x = year, y=value, color = City)) +
   facet_grid(variable~City, scale = "free_y", 
              labeller = my_label_parsed) +
   geom_line() +
-  geom_point() +
+  geom_point(aes(shape = City)) +
   theme_minimal() +
   theme(legend.position = "none",
         axis.text.x = element_text(angle = 45, hjust=1)) +
@@ -144,7 +144,8 @@ forecasts <- ggplot(plot_these, aes(x = year, y=value, color = City)) +
 
 (forecasts)
 
-forecasts_alt <- ggplot(plot_these_alt, aes(x = year, y=value, color = City)) +
+forecasts_alt <- ggplot(plot_these_alt, aes(x = year, y=value, color = City,
+                                            shape = City)) +
   geom_hline(yintercept = 0) +
   facet_grid(variable~City, scale = "free_y", 
              labeller = my_label_parsed) +
@@ -157,12 +158,17 @@ forecasts_alt <- ggplot(plot_these_alt, aes(x = year, y=value, color = City)) +
   ylab(NULL) +
   scale_color_brewer(palette = "Paired") 
 
+plot_these_alt2_points <- plot_these_alt2 %>% 
+  filter(year %in% seq(min(plot_these_alt2$year),
+                       max(plot_these_alt2$year),
+                       by = 3))
+
 forecasts_alt2 <- ggplot(plot_these_alt2, aes(x = year, y=value, color = City)) +
   geom_hline(yintercept = 0) +
   facet_wrap(variable2~., scale = "free_y", 
              labeller = my_label_parsed) +
   geom_line() +
-  geom_point() +
+  geom_point(data = plot_these_alt2_points, aes(shape = City)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust=1),
         legend.title = element_blank()) +
