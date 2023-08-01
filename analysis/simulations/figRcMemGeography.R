@@ -3,6 +3,7 @@
 require(rCMEM)
 require(tidyverse)
 require(gridExtra)
+require(patchwork)
 
 all_sites_and_variables_wide <- read_csv("data/parameterSet/all_sites_and_variables_wide.csv")
 
@@ -129,7 +130,7 @@ my_label_parsed <- function (variable, value) {
   }
 }
 
-forecasts <- ggplot(plot_these, aes(x = year, y=value, color = City)) +
+forecasts <- ggplot(plot_these, aes(x = year, y=value, color = City, group = City)) +
   geom_hline(yintercept = 0) +
   facet_grid(variable~City, scale = "free_y", 
              labeller = my_label_parsed) +
@@ -179,6 +180,38 @@ forecasts_alt2 <- ggplot(plot_these_alt2, aes(x = year, y=value, color = City)) 
 
 (forecasts_alt2)
 
+# MLV edits to just include relative tidal elevation and carbon flux in plot
+
+# Relative tidal elevation plot
+rel_tide <- ggplot(plot_these_alt2 %>% filter(variable == "Relative~Tidal~Elevation"),
+                         aes(x = year, y=value, color = City)) +
+  geom_hline(yintercept = 0) +
+  geom_line() +
+  geom_point(data = plot_these_alt2_points %>% filter(variable == "Relative~Tidal~Elevation"),
+             aes(shape = City)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust=1),
+        legend.title = element_blank()) +
+  xlab("Year") +
+  ylab("Relative Tidal Elevation") +
+  scale_color_brewer(palette = "Paired")  +
+  theme(legend.position = "bottom")
+
+# Carbon flux plot
+carbon_flux <- ggplot(plot_these_alt2 %>% filter(variable == "Carbon~flux~(g~m^{-2}~yr^{-1})"),
+                      aes(x = year, y=value, color = City)) +
+  geom_hline(yintercept = 0) +
+  geom_line() +
+  geom_point(data = plot_these_alt2_points %>% filter(variable == "Carbon~flux~(g~m^{-2}~yr^{-1})"),
+             aes(shape = City)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust=1),
+        legend.title = element_blank()) +
+  xlab("Year") +
+  ylab(expression(paste("Carbon Flux (g ", m^{-2}, "y", r^{-1}, ")"))) +
+  scale_color_brewer(palette = "Paired")  +
+  theme(legend.position = "bottom")
+
 sites <- gauge_df %>% 
   dplyr::rename(lat = Latitude,
                 lon = Longitude) %>% 
@@ -226,43 +259,46 @@ mapFig <- ggplot(data = site_data_summary_plot_aea) +
         axis.text.x = element_text(angle=45, hjust=1)) +
   guides(color=guide_legend(ncol=2)) 
 
-mapFig
-
-gridExtra::grid.arrange(mapFig, forecasts, nrow=2, ncol=1,
-                        heights = c(2,2))
-
-g <- gridExtra::arrangeGrob(mapFig, forecasts, nrow=2, ncol=1,
-                            heights = c(2,2))
-ggsave(file="figs/Geography of MEM.pdf", g,
-       width = 7.25,
-       height = 7.25) #saves g
-
-ggsave(file="figs/Geography of MEM.jpg", g,
-       width = 7.25,
-       height = 7.25) #saves g
-
-g2 <- gridExtra::arrangeGrob(mapFig, forecasts_alt, nrow=2, ncol=1,
-                             heights = c(2,2))
-
-(g2)
-
-ggsave(file="figs/Geography of MEM alt.pdf", g2,
-       width = 7.25,
-       height = 7.25) #saves g
-
-ggsave(file="figs/Geography of MEM alt.jpg", g2,
-       width = 7.25,
-       height = 7.25) #saves g
-
-g3 <- gridExtra::arrangeGrob(mapFig, forecasts_alt2, nrow=2, ncol=1,
-                             heights = c(2,2))
-
-(g3)
-
-ggsave(file="figs/Geography of MEM alt2.pdf", g3,
-       width = 7.25,
-       height = 7.25) #saves g
-
-ggsave(file="figs/Geography of MEM alt2.jpg", g3,
-       width = 7.25,
-       height = 7.25) #saves g
+# Bring together plots
+metrics <- (rel_tide + carbon_flux) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+png("figs/Geography of MEM simple.png", height = 8.5, width = 8.5, res = 300, units = "in")
+mapFig / metrics + plot_layout(heights = c(3,2)) + plot_annotation(tag_levels = "A")
+dev.off()
+# gridExtra::grid.arrange(mapFig, forecasts, nrow=2, ncol=1,
+#                         heights = c(2,2))
+# 
+# g <- gridExtra::arrangeGrob(mapFig, forecasts, nrow=2, ncol=1,
+#                             heights = c(2,2))
+# ggsave(file="figs/Geography of MEM.pdf", g,
+#        width = 7.25,
+#        height = 7.25) #saves g
+# 
+# ggsave(file="figs/Geography of MEM.jpg", g,
+#        width = 7.25,
+#        height = 7.25) #saves g
+# 
+# g2 <- gridExtra::arrangeGrob(mapFig, forecasts_alt, nrow=2, ncol=1,
+#                              heights = c(2,2))
+# 
+# (g2)
+# 
+# ggsave(file="figs/Geography of MEM alt.pdf", g2,
+#        width = 7.25,
+#        height = 7.25) #saves g
+# 
+# ggsave(file="figs/Geography of MEM alt.jpg", g2,
+#        width = 7.25,
+#        height = 7.25) #saves g
+# 
+# g3 <- gridExtra::arrangeGrob(mapFig, forecasts_alt2, nrow=2, ncol=1,
+#                              heights = c(2,2))
+# 
+# (g3)
+# 
+# ggsave(file="figs/Geography of MEM alt2.pdf", g3,
+#        width = 7.25,
+#        height = 7.25) #saves g
+# 
+# ggsave(file="figs/Geography of MEM alt2.jpg", g3,
+#        width = 7.25,
+#        height = 7.25) #saves g
