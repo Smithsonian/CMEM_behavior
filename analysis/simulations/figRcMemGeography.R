@@ -61,6 +61,16 @@ for (i in 1:nrow(all_sites_and_variables_wide)) {
   } else {
     allTimeSteps <- bind_rows(allTimeSteps, annualTimeStepsTemp)
   }
+  
+  # Store cohort information for Annapolis
+  if(i == 2){
+    mem_output_temp$cohorts %>% filter(year == 2099) -> cohorts_Annapolis
+  }
+  # Store cohort information for Seattle
+  if(i == 7){
+    mem_output_temp$cohorts %>% filter(year == 2099) -> cohorts_Seattle
+  }
+    
 }
 
 geo_order <- gauge_df %>% 
@@ -246,7 +256,7 @@ mapFig <- ggplot(data = site_data_summary_plot_aea) +
                       # box.padding = NA,
                       point.padding = NA,
                       show.legend = FALSE,
-                      size = 3,
+                      size = 3, 
                       force = 50) +
   scale_fill_brewer(palette = "Paired") +
   coord_sf(xlim = c(b["xmin"]-200000, b["xmax"]+80000), ylim = c(b["ymin"]-0.5, b["ymax"]+0.5),
@@ -302,3 +312,84 @@ dev.off()
 # ggsave(file="figs/Geography of MEM alt2.jpg", g3,
 #        width = 7.25,
 #        height = 7.25) #saves g
+size_set <- 4
+stroke_set <- 0.7
+## Create plot that shows differences in cohort dynamics across two locations ####
+
+# Fast organic matter
+fast_om <- tibble(site = rep(c("Annapolis", "Seattle"),
+                             c(nrow(cohorts_Annapolis), nrow(cohorts_Seattle))),
+                  fast_om = c(cohorts_Annapolis$fast_OM, cohorts_Seattle$fast_OM),
+                  layer_top = c(cohorts_Annapolis$layer_top, cohorts_Seattle$layer_top))
+
+fast_om %>% 
+  ggplot(aes(fast_om, layer_top, color = site, shape = site)) +
+  geom_point(size = size_set, stroke = stroke_set) +
+  theme_bw(base_size = 14) +
+  scale_y_reverse(lim = c(50,0)) +
+  scale_color_manual(values = c("#B2DF8A", "#A6CEE3")) +
+  scale_shape_manual(values = c(0,1)) +
+  xlab("Fast Organic Matter (g)") +
+  ylab("") +
+  theme(axis.text.y = element_blank()) -> fast_om_plot
+
+# Slow organic matter
+slow_om <- tibble(site = rep(c("Annapolis", "Seattle"),
+                             c(nrow(cohorts_Annapolis), nrow(cohorts_Seattle))),
+                  slow_om = c(cohorts_Annapolis$slow_OM, cohorts_Seattle$slow_OM),
+                  layer_top = c(cohorts_Annapolis$layer_top, cohorts_Seattle$layer_top))
+
+slow_om %>% 
+  ggplot(aes(slow_om, layer_top, color = site, shape = site)) +
+  geom_point(size = size_set, stroke = stroke_set) +
+  theme_bw(base_size = 14) +
+  scale_y_reverse(lim = c(50,0)) +
+  scale_color_manual(values = c("#B2DF8A", "#A6CEE3")) +
+  scale_shape_manual(values = c(0,1)) +
+  xlab("Slow Organic Matter (g)") +
+  ylab("") +
+  theme(axis.text.y = element_blank()) -> slow_om_plot
+
+# Root mass
+root_mass <- tibble(site = rep(c("Annapolis", "Seattle"),
+                             c(nrow(cohorts_Annapolis), nrow(cohorts_Seattle))),
+                    root_mass = c(cohorts_Annapolis$root_mass, cohorts_Seattle$root_mass),
+                  layer_top = c(cohorts_Annapolis$layer_top, cohorts_Seattle$layer_top))
+
+root_mass %>% 
+  ggplot(aes(root_mass, layer_top, color = site, shape = site)) +
+  geom_point(size = size_set, stroke = stroke_set) +
+  theme_bw(base_size = 14) +
+  scale_y_reverse(lim = c(50,0)) +
+  scale_x_continuous(breaks = c(0, 0.001, 0.002)) +
+  scale_color_manual(values = c("#B2DF8A", "#A6CEE3")) +
+  scale_shape_manual(values = c(0,1)) +
+  xlab("Belowground Biomass (g)") +
+  ylab("Depth Below Marsh Surface (cm)")-> root_plot
+
+# Mineral mass
+mineral <- tibble(site = rep(c("Annapolis", "Seattle"),
+                             c(nrow(cohorts_Annapolis), nrow(cohorts_Seattle))),
+                  mineral = c(cohorts_Annapolis$mineral, cohorts_Seattle$mineral),
+                  layer_top = c(cohorts_Annapolis$layer_top, cohorts_Seattle$layer_top))
+
+mineral %>% 
+  ggplot(aes(mineral, layer_top, color = site, shape = site)) +
+  geom_point(size = size_set, stroke = stroke_set) +
+  theme_bw(base_size = 14) +
+  scale_y_reverse(lim = c(50,0)) +
+  scale_color_manual(values = c("#B2DF8A", "#A6CEE3")) +
+  scale_shape_manual(values = c(0,1)) +
+  xlab("Mineral Mass (g)") +
+  ylab("") +
+  theme(axis.text.y = element_blank()) -> mineral_plot
+
+root_plot + fast_om_plot + slow_om_plot + mineral_plot +
+  plot_layout(guides = "collect", nrow = 1) +
+  plot_annotation(tag_levels = "A")&
+  theme(legend.position = "bottom", legend.title = element_blank(),
+        legend.text = element_text(size = 14)) -> cohort_plot_combined
+
+png("figs/geography_cohorts.png", height = 4.8, width = 14.8, res = 300, units = "in")
+cohort_plot_combined
+dev.off()
