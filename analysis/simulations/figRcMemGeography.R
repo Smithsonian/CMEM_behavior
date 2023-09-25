@@ -384,12 +384,19 @@ mineral %>%
   ylab("") +
   theme(axis.text.y = element_blank()) -> mineral_plot
 
+mineral_plot + guides(color = guide_legend(override.aes = list(stroke = 3))) -> mineral_plot
+fast_om_plot + guides(color = guide_legend(override.aes = list(stroke = 3))) -> fast_om_plot
+slow_om_plot + guides(color = guide_legend(override.aes = list(stroke = 3))) -> slow_om_plot
+root_plot + guides(color = guide_legend(override.aes = list(stroke = 3))) -> root_plot
+
 root_plot + fast_om_plot + slow_om_plot + mineral_plot +
   plot_layout(guides = "collect", nrow = 1) +
   plot_annotation(tag_levels = "A")&
   theme(legend.position = "bottom", legend.title = element_blank(),
         legend.text = element_text(size = 14)) -> cohort_plot_combined
 
+  
+  
 png("figs/geography_cohorts.png", height = 4.8, width = 14.8, res = 300, units = "in")
-cohort_plot_combined
+cohort_plot_combined 
 dev.off()
