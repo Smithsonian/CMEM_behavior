@@ -203,7 +203,7 @@ rel_tide <- ggplot(plot_these_alt2 %>% filter(variable == "Relative~Tidal~Elevat
   theme(axis.text.x = element_text(angle = 45, hjust=1),
         legend.title = element_blank()) +
   xlab("Year") +
-  ylab("Relative Tidal Elevation") +
+  ylab("Relative Tidal Elevation\n (dimensionless)") +
   scale_color_brewer(palette = "Paired")  +
   theme(legend.position = "bottom")
 
